@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import JobApplication from "@/models/JobApplication";
+import { sendCareerApplicationNotification } from "@/lib/resend";
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,6 +56,19 @@ export async function POST(request: NextRequest) {
       resumeFileSize: resumeFileSize || 0,
       resumeDataUrl: resumeDataUrl || "",
       status: "submitted",
+    });
+
+    // Send email notification to axiorasoftwarelabs@gmail.com asynchronously
+    sendCareerApplicationNotification({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone.trim(),
+      role: role.trim(),
+      portfolioUrl: portfolioUrl ? portfolioUrl.trim() : "",
+      note: note ? note.trim() : "",
+      resumeFileName: resumeFileName || "",
+    }).catch((emailErr) => {
+      console.error("Non-blocking email send error:", emailErr);
     });
 
     return NextResponse.json(
