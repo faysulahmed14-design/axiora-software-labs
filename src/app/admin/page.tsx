@@ -23,7 +23,9 @@ import {
   Shield,
   Layers,
   Sparkles,
-  Users
+  Users,
+  BookOpen,
+  Plus
 } from "lucide-react";
 
 interface InquiryItem {
@@ -62,6 +64,22 @@ interface SubscriberItem {
   createdAt: string;
 }
 
+interface BlogPostAdminItem {
+  _id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  author: string;
+  readTime: string;
+  published: boolean;
+  featured: boolean;
+  views: number;
+  tags: string[];
+  createdAt: string;
+}
+
 export default function AdminDashboardPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
@@ -69,11 +87,26 @@ export default function AdminDashboardPage() {
   const [loginError, setLoginError] = useState<string | null>(null);
 
   // Dashboard state
-  const [activeTab, setActiveTab] = useState<"inquiries" | "applications" | "subscribers">("inquiries");
+  const [activeTab, setActiveTab] = useState<"inquiries" | "applications" | "subscribers" | "blogs">("inquiries");
   const [inquiries, setInquiries] = useState<InquiryItem[]>([]);
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [subscribers, setSubscribers] = useState<SubscriberItem[]>([]);
+  const [blogs, setBlogs] = useState<BlogPostAdminItem[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+
+  // Blog creation modal state
+  const [newBlogOpen, setNewBlogOpen] = useState(false);
+  const [blogLoading, setBlogLoading] = useState(false);
+  const [blogForm, setBlogForm] = useState({
+    title: "",
+    category: "Software Engineering",
+    author: "Axiora Architecture Pod",
+    excerpt: "",
+    content: "",
+    tags: "Architecture, Cloud, Enterprise",
+    published: true,
+    featured: false,
+  });
 
   // Filters
   const [search, setSearch] = useState("");
@@ -139,22 +172,88 @@ export default function AdminDashboardPage() {
   const fetchData = async () => {
     setDataLoading(true);
     try {
-      const [inqRes, appRes, subRes] = await Promise.all([
+      const [inqRes, appRes, subRes, blogRes] = await Promise.all([
         fetch("/api/admin/inquiries"),
         fetch("/api/admin/applications"),
         fetch("/api/admin/subscribers"),
+        fetch("/api/admin/blogs"),
       ]);
       const inqData = await inqRes.json();
       const appData = await appRes.json();
       const subData = await subRes.json();
+      const blogData = await blogRes.json();
 
       if (inqData.success) setInquiries(inqData.inquiries || []);
       if (appData.success) setApplications(appData.applications || []);
       if (subData.success) setSubscribers(subData.subscribers || []);
+      if (blogData.success) setBlogs(blogData.posts || []);
     } catch (err) {
       console.error("Fetch data error:", err);
     } finally {
       setDataLoading(false);
+    }
+  };
+
+  const handleCreateBlog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBlogLoading(true);
+    try {
+      const res = await fetch("/api/admin/blogs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(blogForm),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setBlogs((prev) => [data.post, ...prev]);
+        setNewBlogOpen(false);
+        setBlogForm({
+          title: "",
+          category: "Software Engineering",
+          author: "Axiora Architecture Pod",
+          excerpt: "",
+          content: "",
+          tags: "Architecture, Cloud, Enterprise",
+          published: true,
+          featured: false,
+        });
+      } else {
+        alert(data.error || "Failed to create article.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error.");
+    } finally {
+      setBlogLoading(false);
+    }
+  };
+
+  const togglePublishBlog = async (id: string, currentStatus: boolean) => {
+    try {
+      const res = await fetch(`/api/admin/blogs/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ published: !currentStatus }),
+      });
+      if (res.ok) {
+        setBlogs((prev) =>
+          prev.map((b) => (b._id === id ? { ...b, published: !currentStatus } : b))
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const deleteBlog = async (id: string) => {
+    if (!confirm("Are you sure you want to permanently delete this article?")) return;
+    try {
+      const res = await fetch(`/api/admin/blogs/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setBlogs((prev) => prev.filter((b) => b._id !== id));
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -269,6 +368,15 @@ export default function AdminDashboardPage() {
       !search ||
       item.email.toLowerCase().includes(search.toLowerCase());
     return matchStatus && matchSearch;
+  });
+
+  const filteredBlogs = blogs.filter((item) => {
+    const matchSearch =
+      !search ||
+      item.title.toLowerCase().includes(search.toLowerCase()) ||
+      item.category.toLowerCase().includes(search.toLowerCase()) ||
+      item.author.toLowerCase().includes(search.toLowerCase());
+    return matchSearch;
   });
 
   // Loading screen while checking auth
@@ -539,10 +647,32 @@ export default function AdminDashboardPage() {
             >
               <Users className="w-4 h-4" /> Subscribers ({subscribers.length})
             </button>
+            <button
+              onClick={() => {
+                setActiveTab("blogs");
+                setStatusFilter("all");
+              }}
+              className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === "blogs"
+                  ? "bg-gradient-to-r from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              <BookOpen className="w-4 h-4" /> Articles ({blogs.length})
+            </button>
           </div>
 
-          {/* Search & Status Filter */}
+          {/* Search & Actions */}
           <div className="flex items-center gap-3">
+            {activeTab === "blogs" && (
+              <button
+                onClick={() => setNewBlogOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-600 text-white text-xs font-bold shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" /> New Article
+              </button>
+            )}
+
             <div className="relative">
               <input
                 type="text"
@@ -551,7 +681,9 @@ export default function AdminDashboardPage() {
                     ? "Search client, company..."
                     : activeTab === "applications"
                     ? "Search candidate, role..."
-                    : "Search subscriber email..."
+                    : activeTab === "subscribers"
+                    ? "Search subscriber email..."
+                    : "Search articles by title..."
                 }
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -560,7 +692,7 @@ export default function AdminDashboardPage() {
               <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
             </div>
 
-            {activeTab !== "subscribers" && (
+            {activeTab !== "subscribers" && activeTab !== "blogs" && (
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -807,7 +939,7 @@ export default function AdminDashboardPage() {
                 </tbody>
               </table>
             </div>
-          ) : (
+          ) : activeTab === "subscribers" ? (
             /* Subscribers Table */
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
@@ -856,6 +988,88 @@ export default function AdminDashboardPage() {
                             onClick={() => deleteSubscriber(sub._id)}
                             className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors cursor-pointer"
                             title="Remove Subscriber"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            /* Articles Table */
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#070c16] border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
+                  <tr>
+                    <th className="py-3.5 px-4">Title & Slug</th>
+                    <th className="py-3.5 px-4">Track / Category</th>
+                    <th className="py-3.5 px-4">Author</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4">Reads</th>
+                    <th className="py-3.5 px-4">Date</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {filteredBlogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-slate-500">
+                        {dataLoading ? "Loading articles..." : "No articles published yet."}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredBlogs.map((b) => (
+                      <tr key={b._id} className="hover:bg-slate-800/30 transition-colors">
+                        <td className="py-4 px-4 max-w-xs">
+                          <div className="font-bold text-white line-clamp-1">{b.title}</div>
+                          <div className="text-slate-500 text-[11px] font-mono truncate">/blog/{b.slug}</div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="px-2 py-0.5 rounded-md bg-cyan-950/80 border border-cyan-800/40 text-cyan-300 text-[10px] font-bold">
+                            {b.category}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-slate-300 font-medium">
+                          {b.author}
+                        </td>
+                        <td className="py-4 px-4">
+                          <button
+                            onClick={() => togglePublishBlog(b._id, b.published)}
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-colors cursor-pointer ${
+                              b.published
+                                ? "bg-emerald-950/80 border-emerald-500/40 text-emerald-400"
+                                : "bg-amber-950/80 border-amber-500/40 text-amber-400"
+                            }`}
+                          >
+                            {b.published ? "Published" : "Draft"}
+                          </button>
+                        </td>
+                        <td className="py-4 px-4 text-slate-400 font-mono">
+                          {b.views || 0}
+                        </td>
+                        <td className="py-4 px-4 text-slate-400 whitespace-nowrap">
+                          {new Date(b.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </td>
+                        <td className="py-4 px-4 text-right space-x-2">
+                          <a
+                            href={`/blog/${b.slug}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-block p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:text-cyan-400 hover:bg-slate-700 transition-colors"
+                            title="Live Preview"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                          <button
+                            onClick={() => deleteBlog(b._id)}
+                            className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors cursor-pointer"
+                            title="Delete Article"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1063,6 +1277,160 @@ export default function AdminDashboardPage() {
                 </a>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create New Article Modal */}
+      {newBlogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm overflow-y-auto">
+          <div className="max-w-2xl w-full rounded-3xl bg-[#0c1424] border border-slate-700 p-6 sm:p-8 shadow-2xl relative space-y-5 my-8">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider">
+                  Content Management Pod
+                </span>
+                <h3 className="text-xl font-extrabold text-white mt-1">
+                  Draft New Engineering Article
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Write and publish technical teardowns or corporate announcements directly to /blog.
+                </p>
+              </div>
+              <button
+                onClick={() => setNewBlogOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateBlog} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Article Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Scaling Kubernetes Pods for 100k Concurrent Users"
+                  value={blogForm.title}
+                  onChange={(e) => setBlogForm({ ...blogForm, title: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#070c16] border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-all"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Engineering Track / Category *
+                  </label>
+                  <select
+                    value={blogForm.category}
+                    onChange={(e) => setBlogForm({ ...blogForm, category: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#070c16] border border-slate-800 text-xs text-white focus:outline-none focus:border-cyan-500 transition-all cursor-pointer"
+                  >
+                    <option>Software Engineering</option>
+                    <option>Cloud Architecture</option>
+                    <option>AI & Machine Learning</option>
+                    <option>Digital Strategy</option>
+                    <option>Cyber Security</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Author / Pod
+                  </label>
+                  <input
+                    type="text"
+                    value={blogForm.author}
+                    onChange={(e) => setBlogForm({ ...blogForm, author: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl bg-[#070c16] border border-slate-800 text-xs text-white focus:outline-none focus:border-cyan-500 transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Summary / Excerpt *
+                </label>
+                <textarea
+                  rows={2}
+                  required
+                  placeholder="Brief 1-2 sentence overview shown on blog cards..."
+                  value={blogForm.excerpt}
+                  onChange={(e) => setBlogForm({ ...blogForm, excerpt: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#070c16] border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Article Body (Markdown Supported) *
+                </label>
+                <textarea
+                  rows={8}
+                  required
+                  placeholder="Write your article in markdown (## Heading 2, ### Heading 3, > Quotes, - Bullet lists, ```code blocks```)..."
+                  value={blogForm.content}
+                  onChange={(e) => setBlogForm({ ...blogForm, content: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#070c16] border border-slate-800 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Tags (Comma separated)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Next.js, Kubernetes, AI, Cloud"
+                  value={blogForm.tags}
+                  onChange={(e) => setBlogForm({ ...blogForm, tags: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl bg-[#070c16] border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-all"
+                />
+              </div>
+
+              <div className="flex items-center gap-6 pt-2">
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={blogForm.published}
+                    onChange={(e) => setBlogForm({ ...blogForm, published: e.target.checked })}
+                    className="rounded border-slate-700 text-cyan-500 focus:ring-0"
+                  />
+                  <span>Publish Immediately</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={blogForm.featured}
+                    onChange={(e) => setBlogForm({ ...blogForm, featured: e.target.checked })}
+                    className="rounded border-slate-700 text-cyan-500 focus:ring-0"
+                  />
+                  <span>Pin as Featured Article</span>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setNewBlogOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-xs font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={blogLoading}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-600 text-white text-xs font-bold shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all disabled:opacity-60 cursor-pointer"
+                >
+                  {blogLoading ? "Publishing..." : "Publish Article"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

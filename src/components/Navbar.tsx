@@ -263,6 +263,10 @@ export default function Navbar() {
               About
             </a>
 
+            <Link href="/blog" className="text-sm font-medium text-slate-300 hover:text-cyan-400 transition-colors">
+              Insights
+            </Link>
+
             <a href="#careers" className="text-sm font-medium text-cyan-300 hover:text-cyan-400 transition-colors flex items-center gap-1">
               Careers <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-mono">Hiring</span>
             </a>
@@ -330,6 +334,14 @@ export default function Navbar() {
               >
                 About Us
               </a>
+              <Link
+                href="/blog"
+                onClick={() => setMobileMenuOpen(false)}
+                className="text-sm font-medium text-slate-200 hover:text-cyan-400 flex items-center justify-between"
+              >
+                <span>Insights & Blog</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono">Articles</span>
+              </Link>
               <a
                 href="#careers"
                 onClick={() => setMobileMenuOpen(false)}
