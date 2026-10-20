@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import JobApplication from "@/models/JobApplication";
-import { sendCareerApplicationNotification } from "@/lib/resend";
+import { sendCareerApplicationNotification, sendCandidateAutoReply } from "@/lib/resend";
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       status: "submitted",
     });
 
-    // Send email notification to axiorasoftwarelabs@gmail.com asynchronously
+    // Send email notification to admin asynchronously
     sendCareerApplicationNotification({
       name: name.trim(),
       email: email.trim().toLowerCase(),
@@ -69,6 +69,15 @@ export async function POST(request: NextRequest) {
       resumeFileName: resumeFileName || "",
     }).catch((emailErr) => {
       console.error("Non-blocking email send error:", emailErr);
+    });
+
+    // Send confirmation auto-reply email to candidate asynchronously
+    sendCandidateAutoReply({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      role: role.trim(),
+    }).catch((candidateErr) => {
+      console.warn("Non-blocking candidate auto-reply error:", candidateErr);
     });
 
     return NextResponse.json(

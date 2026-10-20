@@ -202,3 +202,166 @@ export async function sendCareerApplicationNotification(data: CareerPayload) {
     return { success: false, error: error?.message };
   }
 }
+
+export async function sendClientAutoReply(data: {
+  name: string;
+  email: string;
+  service: string;
+  company?: string;
+}) {
+  if (!resend) return { success: false, reason: "API key missing" };
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #050811; color: #f1f5f9; padding: 24px; margin: 0; }
+          .container { max-width: 600px; margin: 0 auto; background: #0c1424; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+          .header { background: linear-gradient(135deg, #0284c7, #06b6d4, #4f46e5); padding: 32px 28px; text-align: center; }
+          .header h1 { margin: 0; color: #ffffff; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+          .header p { margin: 6px 0 0; color: #e0f2fe; font-size: 13px; }
+          .content { padding: 32px; font-size: 14px; line-height: 1.7; color: #cbd5e1; }
+          .greeting { font-size: 17px; font-weight: 700; color: #ffffff; margin-bottom: 16px; }
+          .card { background: #070c16; border: 1px solid #1e293b; border-radius: 12px; padding: 18px 20px; margin: 20px 0; }
+          .card-title { font-size: 11px; text-transform: uppercase; color: #38bdf8; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 8px; }
+          .card-text { font-size: 14px; color: #f8fafc; font-weight: 600; }
+          .steps { margin: 20px 0; padding-left: 20px; }
+          .steps li { margin-bottom: 8px; }
+          .contact-box { background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.25); border-radius: 10px; padding: 14px 18px; margin-top: 24px; }
+          .contact-box p { margin: 4px 0; font-size: 13px; color: #94a3b8; }
+          .contact-box strong { color: #ffffff; }
+          .footer { padding: 20px 32px; background: #070c16; border-top: 1px solid #1e293b; text-align: center; font-size: 12px; color: #64748b; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Axiora Software Labs</h1>
+            <p>Enterprise Engineering & AI Innovation Hub</p>
+          </div>
+          <div class="content">
+            <div class="greeting">Dear ${data.name},</div>
+            <p>
+              Thank you for reaching out to <strong>Axiora Software Labs</strong>. We have successfully received your project inquiry and consultation request.
+            </p>
+            <div class="card">
+              <div class="card-title">Requested Engagement Track</div>
+              <div class="card-text">${data.service}</div>
+            </div>
+            <p>
+              An <strong>Enterprise Solution Architect</strong> has been assigned to evaluate your requirements and scope. Here is what you can expect next:
+            </p>
+            <ol class="steps">
+              <li><strong>Technical Assessment:</strong> Our senior engineering team is analyzing your specifications and technology alignment.</li>
+              <li><strong>Direct Response (Within 24 Hours):</strong> We will contact you via email or phone with an initial architectural roadmap and discovery schedule.</li>
+              <li><strong>Mutual NDA:</strong> All discussion and specifications remain strictly protected under standard enterprise confidentiality terms.</li>
+            </ol>
+            <div class="contact-box">
+              <p><strong>Need Immediate Assistance?</strong></p>
+              <p>Direct Phone / WhatsApp: <a href="tel:+8801346658678" style="color: #38bdf8; text-decoration: none;">01346658678</a></p>
+              <p>Official Email: <a href="mailto:axiorasoftwarelabs@gmail.com" style="color: #38bdf8; text-decoration: none;">axiorasoftwarelabs@gmail.com</a></p>
+              <p>Innovation Pod: Malibagh, Dhaka, Bangladesh</p>
+            </div>
+            <p style="margin-top: 24px; font-size: 13px; color: #94a3b8;">
+              Best regards,<br/>
+              <strong style="color: #ffffff;">Solution Architecture & Advisory Pod</strong><br/>
+              Axiora Software Labs
+            </p>
+          </div>
+          <div class="footer">
+            &copy; ${new Date().getFullYear()} Axiora Software Labs Inc. All rights reserved.
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  try {
+    const res = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [data.email],
+      replyTo: "axiorasoftwarelabs@gmail.com",
+      subject: `Inquiry Received: Thank you for contacting Axiora Software Labs`,
+      html: htmlContent,
+    });
+    return { success: true, data: res };
+  } catch (error: any) {
+    console.warn("Client auto-reply delivery note:", error?.message);
+    return { success: false, error: error?.message };
+  }
+}
+
+export async function sendCandidateAutoReply(data: {
+  name: string;
+  email: string;
+  role: string;
+}) {
+  if (!resend) return { success: false, reason: "API key missing" };
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #050811; color: #f1f5f9; padding: 24px; margin: 0; }
+          .container { max-width: 600px; margin: 0 auto; background: #0c1424; border: 1px solid #1e293b; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+          .header { background: linear-gradient(135deg, #10b981, #06b6d4, #6366f1); padding: 32px 28px; text-align: center; }
+          .header h1 { margin: 0; color: #ffffff; font-size: 24px; font-weight: 800; }
+          .header p { margin: 6px 0 0; color: #e0f2fe; font-size: 13px; }
+          .content { padding: 32px; font-size: 14px; line-height: 1.7; color: #cbd5e1; }
+          .greeting { font-size: 17px; font-weight: 700; color: #ffffff; margin-bottom: 16px; }
+          .card { background: #070c16; border: 1px solid #1e293b; border-radius: 12px; padding: 18px 20px; margin: 20px 0; }
+          .card-title { font-size: 11px; text-transform: uppercase; color: #34d399; font-weight: 700; margin-bottom: 8px; }
+          .card-text { font-size: 14px; color: #f8fafc; font-weight: 600; }
+          .footer { padding: 20px 32px; background: #070c16; border-top: 1px solid #1e293b; text-align: center; font-size: 12px; color: #64748b; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Axiora Software Labs</h1>
+            <p>Talent Acquisition Pod</p>
+          </div>
+          <div class="content">
+            <div class="greeting">Hi ${data.name},</div>
+            <p>
+              Thank you for applying to join <strong>Axiora Software Labs</strong>! We have successfully received your application and resume.
+            </p>
+            <div class="card">
+              <div class="card-title">Applied Role</div>
+              <div class="card-text">${data.role}</div>
+            </div>
+            <p>
+              Our engineering committee thoroughly reviews every submission against our active pods and technical benchmarks. If your experience and problem-solving passion match an open opportunity, our talent acquisition team will reach out to schedule an introductory discussion.
+            </p>
+            <p style="margin-top: 24px; font-size: 13px; color: #94a3b8;">
+              Best regards,<br/>
+              <strong style="color: #ffffff;">Talent Acquisition & People Team</strong><br/>
+              Axiora Software Labs &bull; Malibagh, Dhaka, Bangladesh
+            </p>
+          </div>
+          <div class="footer">
+            &copy; ${new Date().getFullYear()} Axiora Software Labs Inc.
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  try {
+    const res = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [data.email],
+      replyTo: "axiorasoftwarelabs@gmail.com",
+      subject: `Application Received: ${data.role} at Axiora Software Labs`,
+      html: htmlContent,
+    });
+    return { success: true, data: res };
+  } catch (error: any) {
+    console.warn("Candidate auto-reply delivery note:", error?.message);
+    return { success: false, error: error?.message };
+  }
+}

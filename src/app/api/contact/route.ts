@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import Inquiry from "@/models/Inquiry";
-import { sendInquiryNotification } from "@/lib/resend";
+import { sendInquiryNotification, sendClientAutoReply } from "@/lib/resend";
 
 export async function POST(request: NextRequest) {
   try {
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
       status: "new",
     });
 
-    // Send email notification to axiorasoftwarelabs@gmail.com asynchronously
+    // Send email notification to admin asynchronously
     sendInquiryNotification({
       name: name.trim(),
       email: email.trim().toLowerCase(),
@@ -74,6 +74,16 @@ export async function POST(request: NextRequest) {
       message: message.trim(),
     }).catch((emailErr) => {
       console.error("Non-blocking email send error:", emailErr);
+    });
+
+    // Send confirmation auto-reply email to client asynchronously
+    sendClientAutoReply({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      service: service.trim(),
+      company: company ? company.trim() : "",
+    }).catch((clientErr) => {
+      console.warn("Non-blocking client auto-reply error:", clientErr);
     });
 
     return NextResponse.json(
