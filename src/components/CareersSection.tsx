@@ -17,7 +17,13 @@ import {
 export default function CareersSection() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [fileData, setFileData] = useState<{
+    name: string;
+    size: number;
+    dataUrl: string;
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -53,19 +59,66 @@ export default function CareersSection() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFileName(e.target.files[0].name);
+      const file = e.target.files[0];
+      if (file.size > 10 * 1024 * 1024) {
+        setErrorMessage("File size exceeds 10MB limit. Please upload a smaller PDF/DOCX.");
+        return;
+      }
+      setFileName(file.name);
+      setErrorMessage(null);
+      const reader = new FileReader();
+      reader.onload = () => {
+        setFileData({
+          name: file.name,
+          size: file.size,
+          dataUrl: reader.result as string,
+        });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMessage(null);
 
-    // Simulate upload and submission
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const res = await fetch("/api/careers/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...formData,
+          resumeFileName: fileData?.name || fileName || "",
+          resumeFileSize: fileData?.size || 0,
+          resumeDataUrl: fileData?.dataUrl || "",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to submit job application.");
+      }
+
       setSubmitted(true);
-    }, 1200);
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        role: "Full-Stack Software Engineer",
+        portfolioUrl: "",
+        note: "",
+      });
+      setFileName(null);
+      setFileData(null);
+    } catch (err: any) {
+      setErrorMessage(
+        err.message || "Something went wrong. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -166,6 +219,13 @@ export default function CareersSection() {
                       Fill out the form below and attach your latest resume.
                     </p>
                   </div>
+
+                  {errorMessage && (
+                    <div className="p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2.5">
+                      <span className="text-base">⚠️</span>
+                      <span>{errorMessage}</span>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>

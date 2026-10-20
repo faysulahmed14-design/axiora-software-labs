@@ -15,6 +15,7 @@ import {
 export default function ContactSection() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -24,14 +25,40 @@ export default function ContactSection() {
     message: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    // In Phase 1 frontend, simulate successful submission
-    setTimeout(() => {
-      setLoading(false);
+    setErrorMessage(null);
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to submit request.");
+      }
+
       setSubmitted(true);
-    }, 1200);
+      setFormData({
+        name: "",
+        email: "",
+        company: "",
+        service: "Custom Software Engineering",
+        budget: "$25,000 - $50,000",
+        message: "",
+      });
+    } catch (err: any) {
+      setErrorMessage(
+        err.message || "Something went wrong. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -135,6 +162,13 @@ export default function ContactSection() {
                       Fill out the form below to receive a customized architecture proposal and estimate.
                     </p>
                   </div>
+
+                  {errorMessage && (
+                    <div className="p-3.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2.5">
+                      <span className="text-base">⚠️</span>
+                      <span>{errorMessage}</span>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
