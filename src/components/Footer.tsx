@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -9,17 +9,100 @@ import {
   Mail,
   Phone,
   ShieldCheck,
-  ArrowUp
+  ArrowUp,
+  Sparkles,
+  Send
 } from "lucide-react";
 
 export default function Footer() {
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    setLoading(true);
+    setStatus(null);
+
+    try {
+      const res = await fetch("/api/newsletter/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setStatus({ type: "success", message: data.message });
+        setEmail("");
+      } else {
+        setStatus({ type: "error", message: data.error || "Failed to subscribe." });
+      }
+    } catch {
+      setStatus({ type: "error", message: "Network error. Please try again." });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <footer className="bg-[#010206] border-t border-cyan-950/40 pt-16 pb-12 text-slate-400 text-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Newsletter Subscription Banner */}
+        <div className="mb-14 p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-[#0c1424] via-[#091120] to-[#0d1628] border border-slate-800 shadow-xl flex flex-col lg:flex-row items-center justify-between gap-6">
+          <div className="max-w-xl">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/70 border border-cyan-800/40 text-cyan-400 text-[11px] font-semibold uppercase tracking-wider mb-2">
+              <Sparkles className="w-3.5 h-3.5" /> Axiora Engineering Digest
+            </div>
+            <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              Stay Ahead with Modern Tech & AI Insights
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-400 mt-1.5">
+              Subscribe to get our monthly architecture breakdowns, AI engineering benchmarks, and growth playbooks. Zero spam.
+            </p>
+          </div>
+
+          <div className="w-full lg:w-auto">
+            <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-2.5 w-full lg:w-96">
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your work email..."
+                className="w-full px-4 py-3 rounded-xl bg-[#060b13] border border-slate-700/80 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-all"
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-sky-600 text-white font-semibold text-xs whitespace-nowrap hover:shadow-lg hover:shadow-cyan-500/25 transition-all disabled:opacity-60 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                {loading ? (
+                  "Joining..."
+                ) : (
+                  <>
+                    <Send className="w-3.5 h-3.5" /> Subscribe
+                  </>
+                )}
+              </button>
+            </form>
+            {status && (
+              <p
+                className={`text-xs mt-2 text-center sm:text-left ${
+                  status.type === "success" ? "text-emerald-400" : "text-rose-400"
+                }`}
+              >
+                {status.message}
+              </p>
+            )}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 pb-12 border-b border-cyan-950/40">
           {/* Brand Info */}
           <div className="lg:col-span-2 space-y-4">

@@ -22,7 +22,8 @@ import {
   ChevronRight,
   Shield,
   Layers,
-  Sparkles
+  Sparkles,
+  Users
 } from "lucide-react";
 
 interface InquiryItem {
@@ -53,6 +54,14 @@ interface ApplicationItem {
   createdAt: string;
 }
 
+interface SubscriberItem {
+  _id: string;
+  email: string;
+  status: "active" | "unsubscribed";
+  source: string;
+  createdAt: string;
+}
+
 export default function AdminDashboardPage() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [password, setPassword] = useState("");
@@ -60,9 +69,10 @@ export default function AdminDashboardPage() {
   const [loginError, setLoginError] = useState<string | null>(null);
 
   // Dashboard state
-  const [activeTab, setActiveTab] = useState<"inquiries" | "applications">("inquiries");
+  const [activeTab, setActiveTab] = useState<"inquiries" | "applications" | "subscribers">("inquiries");
   const [inquiries, setInquiries] = useState<InquiryItem[]>([]);
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
+  const [subscribers, setSubscribers] = useState<SubscriberItem[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
 
   // Filters
@@ -129,19 +139,34 @@ export default function AdminDashboardPage() {
   const fetchData = async () => {
     setDataLoading(true);
     try {
-      const [inqRes, appRes] = await Promise.all([
+      const [inqRes, appRes, subRes] = await Promise.all([
         fetch("/api/admin/inquiries"),
         fetch("/api/admin/applications"),
+        fetch("/api/admin/subscribers"),
       ]);
       const inqData = await inqRes.json();
       const appData = await appRes.json();
+      const subData = await subRes.json();
 
       if (inqData.success) setInquiries(inqData.inquiries || []);
       if (appData.success) setApplications(appData.applications || []);
+      if (subData.success) setSubscribers(subData.subscribers || []);
     } catch (err) {
       console.error("Fetch data error:", err);
     } finally {
       setDataLoading(false);
+    }
+  };
+
+  const deleteSubscriber = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this newsletter subscriber?")) return;
+    try {
+      const res = await fetch(`/api/admin/subscribers/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setSubscribers((prev) => prev.filter((s) => s._id !== id));
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -235,6 +260,14 @@ export default function AdminDashboardPage() {
       item.email.toLowerCase().includes(search.toLowerCase()) ||
       item.phone.toLowerCase().includes(search.toLowerCase()) ||
       item.role.toLowerCase().includes(search.toLowerCase());
+    return matchStatus && matchSearch;
+  });
+
+  const filteredSubscribers = subscribers.filter((item) => {
+    const matchStatus = statusFilter === "all" || item.status === statusFilter;
+    const matchSearch =
+      !search ||
+      item.email.toLowerCase().includes(search.toLowerCase());
     return matchStatus && matchSearch;
   });
 
@@ -392,7 +425,7 @@ export default function AdminDashboardPage() {
       {/* Main Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <div className="p-6 rounded-2xl bg-[#0c1424] border border-slate-800 flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
@@ -430,6 +463,23 @@ export default function AdminDashboardPage() {
           <div className="p-6 rounded-2xl bg-[#0c1424] border border-slate-800 flex items-center justify-between">
             <div>
               <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
+                Subscribers
+              </p>
+              <div className="flex items-baseline gap-2 mt-1.5">
+                <span className="text-3xl font-extrabold text-white">{subscribers.length}</span>
+                <span className="text-xs text-purple-400 font-medium">
+                  Active Leads
+                </span>
+              </div>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-purple-950/80 border border-purple-800/50 flex items-center justify-center text-purple-400">
+              <Users className="w-6 h-6" />
+            </div>
+          </div>
+
+          <div className="p-6 rounded-2xl bg-[#0c1424] border border-slate-800 flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-slate-400 font-semibold">
                 Notification Pipeline
               </p>
               <div className="flex items-baseline gap-2 mt-1.5">
@@ -449,13 +499,13 @@ export default function AdminDashboardPage() {
         {/* Tab Selector & Filters */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-2">
           {/* Tabs */}
-          <div className="flex items-center gap-2 p-1.5 rounded-2xl bg-[#0c1424] border border-slate-800 w-fit">
+          <div className="flex flex-wrap items-center gap-2 p-1.5 rounded-2xl bg-[#0c1424] border border-slate-800 w-fit">
             <button
               onClick={() => {
                 setActiveTab("inquiries");
                 setStatusFilter("all");
               }}
-              className={`px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
                 activeTab === "inquiries"
                   ? "bg-gradient-to-r from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20"
                   : "text-slate-400 hover:text-white"
@@ -468,13 +518,26 @@ export default function AdminDashboardPage() {
                 setActiveTab("applications");
                 setStatusFilter("all");
               }}
-              className={`px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
                 activeTab === "applications"
                   ? "bg-gradient-to-r from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20"
                   : "text-slate-400 hover:text-white"
               }`}
             >
               <Briefcase className="w-4 h-4" /> Job Applications ({applications.length})
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab("subscribers");
+                setStatusFilter("all");
+              }}
+              className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                activeTab === "subscribers"
+                  ? "bg-gradient-to-r from-cyan-500 to-sky-600 text-white shadow-lg shadow-cyan-500/20"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              <Users className="w-4 h-4" /> Subscribers ({subscribers.length})
             </button>
           </div>
 
@@ -486,7 +549,9 @@ export default function AdminDashboardPage() {
                 placeholder={
                   activeTab === "inquiries"
                     ? "Search client, company..."
-                    : "Search candidate, role..."
+                    : activeTab === "applications"
+                    ? "Search candidate, role..."
+                    : "Search subscriber email..."
                 }
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -495,28 +560,30 @@ export default function AdminDashboardPage() {
               <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
             </div>
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-[#0c1424] border border-slate-800 text-xs text-slate-300 focus:outline-none focus:border-cyan-500 transition-all cursor-pointer"
-            >
-              <option value="all">All Statuses</option>
-              {activeTab === "inquiries" ? (
-                <>
-                  <option value="new">New</option>
-                  <option value="contacted">Contacted</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="closed">Closed</option>
-                </>
-              ) : (
-                <>
-                  <option value="submitted">Submitted</option>
-                  <option value="under_review">Under Review</option>
-                  <option value="shortlisted">Shortlisted</option>
-                  <option value="rejected">Rejected</option>
-                </>
-              )}
-            </select>
+            {activeTab !== "subscribers" && (
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-[#0c1424] border border-slate-800 text-xs text-slate-300 focus:outline-none focus:border-cyan-500 transition-all cursor-pointer"
+              >
+                <option value="all">All Statuses</option>
+                {activeTab === "inquiries" ? (
+                  <>
+                    <option value="new">New</option>
+                    <option value="contacted">Contacted</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="closed">Closed</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="submitted">Submitted</option>
+                    <option value="under_review">Under Review</option>
+                    <option value="shortlisted">Shortlisted</option>
+                    <option value="rejected">Rejected</option>
+                  </>
+                )}
+              </select>
+            )}
           </div>
         </div>
 
@@ -618,7 +685,7 @@ export default function AdminDashboardPage() {
                 </tbody>
               </table>
             </div>
-          ) : (
+          ) : activeTab === "applications" ? (
             /* Applications Table */
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
@@ -730,6 +797,65 @@ export default function AdminDashboardPage() {
                             onClick={() => deleteApp(app._id)}
                             className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors"
                             title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            /* Subscribers Table */
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#070c16] border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
+                  <tr>
+                    <th className="py-3.5 px-4">Subscriber Email</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4">Channel / Source</th>
+                    <th className="py-3.5 px-4">Subscribed At</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {filteredSubscribers.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-slate-500">
+                        {dataLoading ? "Loading records..." : "No newsletter subscribers found."}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredSubscribers.map((sub) => (
+                      <tr key={sub._id} className="hover:bg-slate-800/30 transition-colors">
+                        <td className="py-4 px-4 font-bold text-white flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-cyan-400" />
+                          <span>{sub.email}</span>
+                        </td>
+                        <td className="py-4 px-4">
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-400 text-[11px] font-bold">
+                            Active
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 text-slate-400 font-mono text-[11px]">
+                          {sub.source}
+                        </td>
+                        <td className="py-4 px-4 text-slate-400 whitespace-nowrap">
+                          {new Date(sub.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                        <td className="py-4 px-4 text-right">
+                          <button
+                            onClick={() => deleteSubscriber(sub._id)}
+                            className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 transition-colors cursor-pointer"
+                            title="Remove Subscriber"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

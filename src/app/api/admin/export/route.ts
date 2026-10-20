@@ -3,6 +3,7 @@ import { verifyAdminRequest } from "@/lib/auth";
 import { connectToDatabase } from "@/lib/mongodb";
 import Inquiry from "@/models/Inquiry";
 import JobApplication from "@/models/JobApplication";
+import Subscriber from "@/models/Subscriber";
 
 export async function GET(request: NextRequest) {
   if (!verifyAdminRequest(request)) {
@@ -15,7 +16,27 @@ export async function GET(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    if (type === "applications") {
+    if (type === "subscribers") {
+      const subs = await Subscriber.find({}).sort({ createdAt: -1 }).lean();
+      const headers = ["ID", "Email", "Status", "Source", "Subscribed At"];
+      const rows = subs.map((s: any) => [
+        `"${s._id}"`,
+        `"${(s.email || "").replace(/"/g, '""')}"`,
+        `"${s.status || ""}"`,
+        `"${s.source || ""}"`,
+        `"${new Date(s.createdAt).toISOString()}"`,
+      ]);
+
+      const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+
+      return new NextResponse(csvContent, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="axiora-subscribers-${Date.now()}.csv"`,
+        },
+      });
+    } else if (type === "applications") {
       const apps = await JobApplication.find({}).sort({ createdAt: -1 }).lean();
       const headers = ["ID", "Name", "Email", "Phone", "Role", "Status", "Resume", "Created At"];
       const rows = apps.map((a: any) => [
