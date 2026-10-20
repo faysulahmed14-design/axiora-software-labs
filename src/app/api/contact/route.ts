@@ -2,11 +2,40 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import Inquiry from "@/models/Inquiry";
 import { sendInquiryNotification, sendClientAutoReply } from "@/lib/resend";
+import { checkRateLimit, isBotSubmission } from "@/lib/rateLimit";
 
 export async function POST(request: NextRequest) {
   try {
+    // 1. IP Rate Limiting (Max 5 inquiries per 10 minutes)
+    const rateCheck = checkRateLimit("contact", request, 5, 600);
+    if (!rateCheck.success) {
+      const waitMinutes = Math.ceil(rateCheck.resetInSeconds / 60);
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Security Rate Limit: You have reached the submission limit. Please wait ${waitMinutes} minute(s) before trying again.`,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": rateCheck.resetInSeconds.toString() },
+        }
+      );
+    }
+
     const body = await request.json();
-    const { name, email, company, service, budget, message } = body;
+    const { name, email, company, service, budget, message, _hp_check } = body;
+
+    // 2. Honeypot Bot Trap: If hidden bot field is filled, silently discard
+    if (isBotSubmission(_hp_check)) {
+      console.warn("Spam Bot blocked by Honeypot in /api/contact");
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Your inquiry has been received. Our team will contact you shortly.",
+        },
+        { status: 200 }
+      );
+    }
 
     // Validation
     if (!name || typeof name !== "string" || name.trim().length === 0) {

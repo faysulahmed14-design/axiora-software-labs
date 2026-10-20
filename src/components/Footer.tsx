@@ -16,6 +16,7 @@ import {
 
 export default function Footer() {
   const [email, setEmail] = useState("");
+  const [hpCheck, setHpCheck] = useState("");
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
@@ -33,13 +34,14 @@ export default function Footer() {
       const res = await fetch("/api/newsletter/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, _hp_check: hpCheck }),
       });
       const data = await res.json();
 
       if (res.ok && data.success) {
         setStatus({ type: "success", message: data.message });
         setEmail("");
+        setHpCheck("");
       } else {
         setStatus({ type: "error", message: data.error || "Failed to subscribe." });
       }
@@ -69,6 +71,17 @@ export default function Footer() {
 
           <div className="w-full lg:w-auto">
             <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-2.5 w-full lg:w-96">
+              {/* Honeypot Bot Trap */}
+              <input
+                type="text"
+                name="_hp_check"
+                value={hpCheck}
+                onChange={(e) => setHpCheck(e.target.value)}
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                style={{ position: "absolute", opacity: 0, zIndex: -1, pointerEvents: "none", width: 0, height: 0 }}
+              />
               <input
                 type="email"
                 required

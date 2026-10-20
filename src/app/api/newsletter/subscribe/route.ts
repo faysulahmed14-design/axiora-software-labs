@@ -2,11 +2,39 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import Subscriber from "@/models/Subscriber";
 import { resend } from "@/lib/resend";
+import { checkRateLimit, isBotSubmission } from "@/lib/rateLimit";
 
 export async function POST(request: NextRequest) {
   try {
+    // 1. IP Rate Limiting (Max 5 subscriptions per 10 minutes)
+    const rateCheck = checkRateLimit("newsletter", request, 5, 600);
+    if (!rateCheck.success) {
+      const waitMinutes = Math.ceil(rateCheck.resetInSeconds / 60);
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Security Rate Limit: Too many subscription attempts. Please wait ${waitMinutes} minute(s).`,
+        },
+        {
+          status: 429,
+          headers: { "Retry-After": rateCheck.resetInSeconds.toString() },
+        }
+      );
+    }
+
     const body = await request.json();
-    const { email } = body;
+    const { email, _hp_check } = body;
+
+    // 2. Honeypot check
+    if (isBotSubmission(_hp_check)) {
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Thank you for subscribing to Axiora Tech Insights!",
+        },
+        { status: 200 }
+      );
+    }
 
     if (
       !email ||

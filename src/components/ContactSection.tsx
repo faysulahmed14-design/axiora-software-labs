@@ -23,6 +23,7 @@ export default function ContactSection() {
     service: "Custom Software Engineering",
     budget: "$25,000 - $50,000",
     message: "",
+    _hp_check: "",
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -51,6 +52,7 @@ export default function ContactSection() {
         service: "Custom Software Engineering",
         budget: "$25,000 - $50,000",
         message: "",
+        _hp_check: "",
       });
     } catch (err: any) {
       setErrorMessage(
@@ -154,6 +156,18 @@ export default function ContactSection() {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Honeypot Bot Trap: Invisible to human users, traps automated scrapers & bots */}
+                  <input
+                    type="text"
+                    name="_hp_check"
+                    value={formData._hp_check}
+                    onChange={(e) => setFormData({ ...formData, _hp_check: e.target.value })}
+                    tabIndex={-1}
+                    autoComplete="off"
+                    aria-hidden="true"
+                    style={{ position: "absolute", opacity: 0, zIndex: -1, pointerEvents: "none", width: 0, height: 0 }}
+                  />
+
                   <div>
                     <h3 className="text-xl font-bold text-white tracking-tight">
                       Request a Project Consultation

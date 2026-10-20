@@ -32,6 +32,7 @@ export default function CareersSection() {
     role: "Full-Stack Software Engineer",
     portfolioUrl: "",
     note: "",
+    _hp_check: "",
   });
 
   const perks = [
@@ -109,6 +110,7 @@ export default function CareersSection() {
         role: "Full-Stack Software Engineer",
         portfolioUrl: "",
         note: "",
+        _hp_check: "",
       });
       setFileName(null);
       setFileData(null);
@@ -211,6 +213,18 @@ export default function CareersSection() {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-5">
+                  {/* Honeypot Bot Trap: Invisible to human users, traps automated scrapers & bots */}
+                  <input
+                    type="text"
+                    name="_hp_check"
+                    value={formData._hp_check}
+                    onChange={(e) => setFormData({ ...formData, _hp_check: e.target.value })}
+                    tabIndex={-1}
+                    autoComplete="off"
+                    aria-hidden="true"
+                    style={{ position: "absolute", opacity: 0, zIndex: -1, pointerEvents: "none", width: 0, height: 0 }}
+                  />
+
                   <div>
                     <h3 className="text-xl font-bold text-white tracking-tight">
                       Submit Your CV / Resume
